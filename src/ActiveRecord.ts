@@ -39,16 +39,22 @@ export function fetch(this: any, table: Table, ...props: PropertyKey[]): any {
         fetchProps.set(table, [...(fetchProps.get(table) || []), prop]);
     }
     const newF = async function(scene: Scene, ...args: any[]) {
-        const record = await newF.rawFunction(scene, ...args);
-        const props = fetchProps.get(record.constructor as any) || [];
-        for (const prop of props) {
-            const association = getAssociation(record.constructor as any, prop);
-            const value = await association.query(scene, record);
-            Object.defineProperty(record, prop, {
-                value: value
-            })
+        const result = await newF.rawFunction(scene, ...args);
+        if (!result) {
+            return result;
         }
-        return record;
+        const records = Array.isArray(result) ? result : [result]
+        for (const record of records) {
+            const props = fetchProps.get(record.constructor as any) || [];
+            for (const prop of props) {
+                const association = getAssociation(record.constructor as any, prop);
+                const value = await association.query(scene, record);
+                Object.defineProperty(record, prop, {
+                    value: value
+                })
+            }
+        }
+        return result;
     }
     newF.fetch = (table: Table, prop: PropertyKey) => {
         return fetch.call(newF, table, prop);

@@ -1,7 +1,7 @@
 import { Scene, Table } from "@rotcare/io";
 import { fetch } from './ActiveRecord';
 
-type F<T> = ((scene: Scene, id?: any) => T) & { fetch(table: Table<T>, prop: keyof T): F<T> };
+type F<T> = ((scene: Scene, id?: any) => Promise<T>) & { fetch(table: Table<T>, prop: keyof T): F<T> };
 
 export function toGet<T>(table: Table<T>): F<T> {
     const f = async (scene: Scene, id?: any) => {

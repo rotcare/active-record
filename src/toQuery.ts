@@ -1,7 +1,7 @@
 import { Scene, Table } from "@rotcare/io";
 import { fetch } from './ActiveRecord';
 
-type F<T> = ((scene: Scene, props: Partial<T>) => Promise<T[]>) & { fetch(table: Table<T>, ...props: (keyof T)[]): F<T> };
+type F<T> = ((scene: Scene, props: Partial<T>) => Promise<T[]>) & { fetch<S>(table: Table<S>, ...props: (keyof S)[]): F<T> };
 
 export function toQuery<T>(table: Table<T>): F<T> {
     const f = async (scene: Scene, props: Record<string, any>) => {

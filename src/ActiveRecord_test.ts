@@ -10,7 +10,7 @@ describe('ActiveRecord', () => {
         should('按外键查询到数据', async (scene) => {
             class Order extends ActiveRecord {
                 // 声明 get 的时候要 fetch Order 的 items
-                public static readonly get = toGet(Order).fetch(Order, 'items');
+                public static readonly getOrder = toGet(Order).fetch(Order, 'items');
                 public readonly id: string;
                 public readonly items = this.hasMany(OrderItem);
             }
@@ -32,7 +32,7 @@ describe('ActiveRecord', () => {
         should('按外键查询到数据', async (scene) => {
             class Order extends ActiveRecord {
                 // 声明 query 的时候要 fetch Order 的 items
-                public static readonly query = toQuery(Order).fetch(Order, 'items');
+                public static readonly queryOrder = toQuery(Order).fetch(Order, 'items');
                 public readonly id: string;
                 public readonly items = this.hasMany(OrderItem);
             }

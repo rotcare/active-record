@@ -50,6 +50,9 @@ export function fetch(this: any, table: Table, ...props: PropertyKey[]): any {
                 const association = getAssociation(record.constructor as any, prop);
                 const value = await association.query(scene, record);
                 Object.defineProperty(record, prop, {
+                    // JSON.stringify 的时候就不会把关联的数据也序列化进去了
+                    // 因为关联的数据中可能有循环引用
+                    enumerable: false,
                     value: value
                 })
             }
@@ -83,10 +86,13 @@ function inspectAssociations(activeRecord: ActiveRecord) {
 
 export function getAssociation(table: Table, prop: PropertyKey) {
     const associations = associationCache.get(table);
-    if (!associations) {
-        return undefined;
+    if (associations) {
+        const association = associations.get(prop);
+        if (association) {
+            return association;
+        }
     }
-    return associations.get(prop);
+    throw new Error(`association ${table.tableName}.${prop.toString()} not defined`);
 }
 
 abstract class Association {

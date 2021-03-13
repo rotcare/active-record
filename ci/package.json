@@ -1,0 +1,8 @@
+{
+    "private": true,
+    "name": "ci",
+    "workspaces": [".."],
+    "dependencies": {
+        "@rotcare/io": "git://github.com/rotcare/io.git"
+    }
+}

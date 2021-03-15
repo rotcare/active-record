@@ -1,9 +1,7 @@
 import { Scene, Table } from "@rotcare/io";
-import { fetch } from './ActiveRecord';
+import { ActiveRecord } from './ActiveRecord';
 
-type F<T> = ((scene: Scene, id?: any) => Promise<T>) & { fetch(table: Table<T>, prop: keyof T): F<T> };
-
-export function toGet<T>(table: Table<T>): F<T> {
+export function toGet<T>(table: Table<T>) {
     const f = async (scene: Scene, id?: any) => {
         const props = id ? { id } : {};
         const records = await scene.io.database.query(scene, table, props);
@@ -17,6 +15,5 @@ export function toGet<T>(table: Table<T>): F<T> {
         }
         return records[0];
     }
-    f.fetch = fetch;
-    return f as any;
+    return ActiveRecord.withFetch(f);
 }

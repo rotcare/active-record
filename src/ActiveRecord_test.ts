@@ -65,7 +65,7 @@ describe('ActiveRecord', () => {
         const loaded = await OrderItem.getOrderItem(scene, orderItem.id);
         strict.equal(loaded.order.id, order.id);
     }))
-    xit('加载循环引用关系', should('复用对象', async (scene) => {
+    it('加载循环引用关系', should('复用对象', async (scene) => {
         class Order extends ActiveRecord {
             // 声明 get 的时候要 fetch Order 的 items
             public static readonly getOrder = toGet(Order).fetch(Order, 'items').fetch(async () => OrderItem, 'order');

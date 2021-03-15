@@ -65,9 +65,7 @@ function fetch(this: any, table: Table | TableProvider, ...props: PropertyKey[])
             }
         }
         const records = Array.isArray(result) ? result : [result]
-        for (const record of records) {
-            await fetchAssociations(scene, fetchPropsByTable, record);
-        }
+        await fetchAssociations(scene, fetchPropsByTable, records);
         return result;
     }
     // 远程方法调用的时候是这个实现
@@ -92,17 +90,52 @@ function fetch(this: any, table: Table | TableProvider, ...props: PropertyKey[])
     return newF as any;
 }
 
-async function fetchAssociations(scene: Scene, fetchProps: Map<Table, PropertyKey[]>, record: ActiveRecord) {
-    const props = fetchProps.get(record.table) || [];
-    for (const prop of props) {
-        const association = getAssociation(record.table, prop);
-        const value = await association.fetch(scene, record);
-        Object.defineProperty(record, prop, {
-            // JSON.stringify 的时候就不会把关联的数据也序列化进去了
-            // 因为关联的数据中可能有循环引用
-            enumerable: false,
-            configurable: true,
-            value: value
-        })
+async function fetchAssociations(scene: Scene, fetchProps: Map<Table, PropertyKey[]>, initialRecords: ActiveRecord[]) {
+    const identityMap: Record<string, ActiveRecord> = {};
+    for (const record of initialRecords) {
+        identityMap[`${record.table.tableName}:${record.id}`] = record;
     }
+    let remainingRecords = initialRecords;
+    while (remainingRecords.length) {
+        const toLoad = [...remainingRecords];
+        remainingRecords = [];
+        for (const record of toLoad) {
+            const props = fetchProps.get(record.table) || [];
+            for (const prop of props) {
+                const association = getAssociation(record.table, prop);
+                let value = await association.fetch(scene, record);
+                if (Array.isArray(value)) {
+                    value = deduplicate({ identityMap, loadedRecords: value, remainingRecords });
+                } else {
+                    value = deduplicate({ identityMap, loadedRecords: [value], remainingRecords })[0];
+                }
+                Object.defineProperty(record, prop, {
+                    // JSON.stringify 的时候就不会把关联的数据也序列化进去了
+                    // 因为关联的数据中可能有循环引用
+                    enumerable: false,
+                    configurable: true,
+                    value: value
+                })
+            }
+        }
+    }
+}
+
+function deduplicate(options: {
+    identityMap: Record<string, ActiveRecord>,
+    loadedRecords: ActiveRecord[],
+    remainingRecords: ActiveRecord[],
+}) {
+    const { identityMap, loadedRecords, remainingRecords } = options;
+    for (const [i, record] of loadedRecords.entries()) {
+        const qualifiedId = `${record.table.tableName}:${record.id}`;
+        const existing = identityMap[qualifiedId];
+        if (existing) {
+            loadedRecords[i] = existing;
+        } else {
+            remainingRecords.push(record);
+            identityMap[qualifiedId] = record;
+        }
+    }
+    return loadedRecords;
 }

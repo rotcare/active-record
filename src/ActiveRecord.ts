@@ -22,9 +22,7 @@ export class ActiveRecord extends Entity {
             Object.defineProperty(this, k, {
                 enumerable: false,
                 configurable: true,
-                get() {
-                    throw new Error('association not fetched, add .fetch() after toGet/toLoad/toQuery');
-                },
+                value: undefined,
             });
         }
     }

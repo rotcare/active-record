@@ -38,20 +38,78 @@ export class ActiveRecord extends Entity {
         (f as any).fetch = fetch;
         return f as any;
     }
+    public static decode(encoded: any) {
+        let identityMap = encoded?.__identityMap__;
+        if (identityMap) {
+            return decodeObjectGraph(identityMap, encoded.value);
+        }
+        return encoded;
+    }
+}
+
+function decodeObjectGraph(identityMap: Record<string, object>, value: any) {
+    if (Array.isArray(value)) {
+        return value.map((elem: string) => restoreAssociations(identityMap, elem));
+    }
+    return restoreAssociations(identityMap, value);
+}
+
+function restoreAssociations(identityMap: Record<string, object>, qualified: string) {
+    const record = identityMap[qualified];
+    if (!record) {
+        throw new Error(`${qualified} not found in identity map ${JSON.stringify(Object.keys(identityMap))}`);
+    }
+    const associations = Reflect.get(record, '__associations__');
+    if (!associations) {
+        return record;
+    }
+    Reflect.deleteProperty(record, '__associations__');
+    for (const [prop, value] of Object.entries(associations)) {
+        Reflect.set(record, prop, decodeObjectGraph(identityMap, value));
+    }    
+    return record;
+}
+
+async function encodeObjectGraph(scene: Scene, result: any, fetchResultAssociations: (scene: Scene, result: any,
+    onPropsFetched?: (record: ActiveRecord, props: PropertyKey[]) => void) => Promise<Record<string, ActiveRecord>>) {
+    if (!result) {
+        return result;
+    }
+    const identityMap = await fetchResultAssociations(scene, result, (record, props) => {
+        const associations: Record<string, any> = {};
+        Reflect.set(record, '__associations__', associations);
+        for (const prop of props) {
+            associations[prop.toString()] = encodeValue(Reflect.get(record, prop));
+        }
+    });
+    return {
+        '__identityMap__': identityMap,
+        'value': encodeValue(result)
+    }
+}
+
+function encodeValue(value: any) {
+    if (!value) {
+        return value;
+    }
+    if (Array.isArray(value)) {
+        return value.map(elem => getQualifiedId(elem));
+    }
+    return getQualifiedId(value);
 }
 
 // 给查询方法增加 fetch 关联关系的能力
 function fetch(this: any, table: Table | TableProvider, ...props: PropertyKey[]): any {
+    // 链式调用会累积需要 fetch 的 props
     const fetchProps: FetchProp[] = [...(this.fetchProps || [])];
     for (const prop of props) {
         fetchProps.push({ table, prop });
     }
     let fetchPropsByTable: Map<Table, PropertyKey[]>;
-    // 本地方法调用的时候是这个实现
-    const newF = async function (scene: Scene, ...args: any[]) {
-        const result = await newF.rawFunction(scene, ...args);
+    async function fetchResultAssociations(scene: Scene, result: any,
+        onPropsFetched?: (record: ActiveRecord, props: PropertyKey[]) => void) {
         if (!result) {
-            return result;
+            return {};
         }
         if (!fetchPropsByTable) {
             fetchPropsByTable = new Map();
@@ -65,7 +123,12 @@ function fetch(this: any, table: Table | TableProvider, ...props: PropertyKey[])
             }
         }
         const records = Array.isArray(result) ? result : [result]
-        await fetchAssociations(scene, fetchPropsByTable, records);
+        return await fetchRecordsAssociations(scene, fetchPropsByTable, records, onPropsFetched);
+    }
+    // 本地方法调用的时候是这个实现
+    const newF = async function (scene: Scene, ...args: any[]) {
+        const result = await newF.rawFunction(scene, ...args);
+        await fetchResultAssociations(scene, result);
         return result;
     }
     // 远程方法调用的时候是这个实现
@@ -76,7 +139,8 @@ function fetch(this: any, table: Table | TableProvider, ...props: PropertyKey[])
             batches.push({
                 jobs: [theJob],
                 async execute(scene) {
-                    theJob.result = await newF.rawFunction(scene, ...theJob.args);
+                    const result = await newF.rawFunction(scene, ...theJob.args);
+                    theJob.result = await encodeObjectGraph(scene, result, fetchResultAssociations);
                 }
             })
         }
@@ -90,9 +154,13 @@ function fetch(this: any, table: Table | TableProvider, ...props: PropertyKey[])
     return newF as any;
 }
 
-async function fetchAssociations(scene: Scene, fetchProps: Map<Table, PropertyKey[]>, initialRecords: ActiveRecord[]) {
+async function fetchRecordsAssociations(scene: Scene, fetchProps: Map<Table, PropertyKey[]>, initialRecords: ActiveRecord[],
+    onPropsFetched?: (record: ActiveRecord, props: PropertyKey[]) => void) {
     const identityMap: Record<string, ActiveRecord> = {};
     for (const record of initialRecords) {
+        if (!(record instanceof ActiveRecord)) {
+            throw new Error(`${record} is not ActiveRecord`);
+        }
         identityMap[`${record.table.tableName}:${record.id}`] = record;
     }
     let remainingRecords = initialRecords;
@@ -100,7 +168,10 @@ async function fetchAssociations(scene: Scene, fetchProps: Map<Table, PropertyKe
         const toLoad = [...remainingRecords];
         remainingRecords = [];
         for (const record of toLoad) {
-            const props = fetchProps.get(record.table) || [];
+            const props = fetchProps.get(record.table);
+            if (!props) {
+                continue;
+            }
             for (const prop of props) {
                 const association = getAssociation(record.table, prop);
                 let value = await association.fetch(scene, record);
@@ -117,8 +188,12 @@ async function fetchAssociations(scene: Scene, fetchProps: Map<Table, PropertyKe
                     value: value
                 })
             }
+            if (onPropsFetched) {
+                onPropsFetched(record, props);
+            }
         }
     }
+    return identityMap;
 }
 
 function deduplicate(options: {
@@ -128,7 +203,7 @@ function deduplicate(options: {
 }) {
     const { identityMap, loadedRecords, remainingRecords } = options;
     for (const [i, record] of loadedRecords.entries()) {
-        const qualifiedId = `${record.table.tableName}:${record.id}`;
+        const qualifiedId = getQualifiedId(record);
         const existing = identityMap[qualifiedId];
         if (existing) {
             loadedRecords[i] = existing;
@@ -138,4 +213,8 @@ function deduplicate(options: {
         }
     }
     return loadedRecords;
+}
+
+function getQualifiedId(record: ActiveRecord) {
+    return `${record.table.tableName}:${record.id}`;
 }

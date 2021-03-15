@@ -6,7 +6,7 @@ import * as http from 'http';
 import { Impl } from '@rotcare/io';
 import fetch from 'node-fetch';
 
-xdescribe('ActiveRecord / decode', () => {
+describe('ActiveRecord / decode', () => {
     let httpServer: http.Server;
     let oldOutput: any;
     before(() => {
@@ -32,9 +32,7 @@ xdescribe('ActiveRecord / decode', () => {
                 public orderId: string;
             }
             scene.io.serviceProtocol = new Impl.HttpRpcClient({
-                decode(data) {
-                    return data;
-                }
+                decode: ActiveRecord.decode
             });
             const rpcServer = new Impl.HttpRpcServer(
                 {
@@ -49,8 +47,6 @@ xdescribe('ActiveRecord / decode', () => {
             httpServer = http.createServer(rpcServer.handler).listen(3000);
 
             const order = await scene.insert(Order, {});
-            // 和 RoR 不同，关联关系如果不是 get/load/query 的时候指定了 fetch，都不会懒加载，而是直接抛异常
-            strict.throws(() => order.items, '访问未 fetch 的 items 应该抛异常');
             await scene.insert(OrderItem, { orderId: order.id });
             await scene.insert(OrderItem, { orderId: order.id });
             

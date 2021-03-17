@@ -32,24 +32,18 @@ describe('ActiveRecord / decode', () => {
                 public orderId: string;
             }
             scene.io.serviceProtocol = new Impl.HttpRpcClient({
-                decode: ActiveRecord.decode
+                decode: ActiveRecord.decode,
             });
-            const rpcServer = new Impl.HttpRpcServer(
-                {
-                    ioConf: scene.io,
-                },
-                async () => {
-                    return { Order }
-                },
-                'Order',
-                'getOrder',
-            );
+            const rpcServer = new Impl.HttpRpcServer({
+                ioProvider: () => scene.io,
+                func: Order.getOrder,
+            });
             httpServer = http.createServer(rpcServer.handler).listen(3000);
 
             const order = await scene.insert(Order, {});
             await scene.insert(OrderItem, { orderId: order.id });
             await scene.insert(OrderItem, { orderId: order.id });
-            
+
             const loadedOrder = await scene.execute(undefined, async () => {
                 return await (scene.useServices('localhost') as any).getOrder(order.id);
             });
@@ -58,4 +52,4 @@ describe('ActiveRecord / decode', () => {
             strict.equal(loadedOrder.items.length, 2);
         }),
     );
-})
+});

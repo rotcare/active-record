@@ -15,16 +15,16 @@ type WithFetch<F> = F & {
 
 export class ActiveRecord extends Entity {
     public readonly id: unknown;
-    // @internal
-    public onLoad(options: { update: () => Promise<void>; delete: () => Promise<void> }) {
-        super.onLoad(options);
-        for (const k of inspectAssociations(this).keys()) {
-            Object.defineProperty(this, k, {
+    public static create(props: Record<string, any>) {
+        const entity = super.create(props) as ActiveRecord;
+        for (const k of inspectAssociations(entity).keys()) {
+            Object.defineProperty(entity, k, {
                 enumerable: false,
                 configurable: true,
                 value: undefined,
             });
         }
+        return entity;
     }
     protected hasMany<T>(dst: Table<T>): T[] {
         return new HasManyAssociation(this.table, dst) as any;

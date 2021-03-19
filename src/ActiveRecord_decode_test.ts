@@ -38,10 +38,9 @@ describe('ActiveRecord / decode', () => {
                 decode: ActiveRecord.decode,
             });
             const rpcServer = new Impl.HttpRpcServer({
-                ioProvider: () => scene.io,
                 func: Order.getOrder,
             });
-            httpServer = http.createServer(rpcServer.handler).listen(3000);
+            httpServer = http.createServer(rpcServer.handle.bind(rpcServer, scene.io)).listen(3000);
 
             const order = await scene.create(Order, {});
             await scene.create(OrderItem, { orderId: order.id });

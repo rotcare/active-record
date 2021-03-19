@@ -1,5 +1,5 @@
 import { Entity, isTable, Scene, Table } from '@rotcare/io';
-import { Impl } from '@rotcare/io';
+import { HttpRpc } from '@rotcare/io-http-rpc';
 import { BelongsToAssociation, getAssociation, HasManyAssociation, inspectAssociations } from './Association';
 
 type TableProvider<T = any> = () => Promise<Table<T>>;
@@ -130,8 +130,8 @@ function fetch(this: any, table: Table | TableProvider, ...props: PropertyKey[])
         return result;
     }
     // 远程方法调用的时候是这个实现
-    newF.batchExecute = (jobs: Impl.HttpRpc.Job[]) => {
-        const batches: Impl.HttpRpc.JobBatch[] = [];
+    newF.batchExecute = (jobs: HttpRpc.Job[]) => {
+        const batches: HttpRpc.JobBatch[] = [];
         for (const job of jobs) {
             const theJob = job;
             batches.push({

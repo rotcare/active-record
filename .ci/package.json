@@ -5,10 +5,12 @@
         ".."
     ],
     "dependencies": {
-        "@rotcare/io": "git://github.com/rotcare/io.git"
+        "@rotcare/io": "git://github.com/rotcare/io.git",
+        "@rotcare/io-http-rpc": "git://github.com/rotcare/io-http-rpc.git"
     },
     "resolutions": {
-        "@rotcare/io": "git://github.com/rotcare/io.git"
+        "@rotcare/io": "git://github.com/rotcare/io.git",
+        "@rotcare/io-http-rpc": "git://github.com/rotcare/io-http-rpc.git"
     },
     "scripts": {
         "postinstall": "cd .. && rm -rf node_modules && ln -s .ci/node_modules"

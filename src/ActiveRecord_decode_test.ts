@@ -3,9 +3,9 @@ import { should } from './shoud';
 import { strict } from 'assert';
 import { toGet } from './toGet';
 import * as http from 'http';
-import { Impl } from '@rotcare/io';
 import fetch from 'node-fetch';
 import { toCreate } from './toCreate';
+import { HttpRpcClient, HttpRpcServer } from '@rotcare/io-http-rpc';
 
 describe('ActiveRecord / decode', () => {
     let httpServer: http.Server;
@@ -34,10 +34,10 @@ describe('ActiveRecord / decode', () => {
                 public readonly id: string;
                 public orderId: string;
             }
-            scene.io.serviceProtocol = new Impl.HttpRpcClient({
+            scene.io.serviceProtocol = new HttpRpcClient({
                 decode: ActiveRecord.decode,
             });
-            const rpcServer = new Impl.HttpRpcServer({
+            const rpcServer = new HttpRpcServer({
                 func: Order.getOrder,
             });
             httpServer = http.createServer(rpcServer.handle.bind(rpcServer, scene.io)).listen(3000);

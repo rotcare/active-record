@@ -53,7 +53,7 @@ export class HasManyAssociation extends Association {
         this.fk = `${srcTable.tableName[0].toLowerCase()}${srcTable.tableName.substr(1)}Id`;
     }
     public fetch(scene: Scene, srcRecord: ActiveRecord) {
-        return scene.io.database.query(scene, this.dstTable, { [this.fk]: srcRecord.id });
+        return scene.useDatabase().query(this.dstTable, { [this.fk]: srcRecord.id });
     }
 }
 
@@ -63,7 +63,7 @@ export class BelongsToAssociation extends Association {
         super();
     }
     public async fetch(scene: Scene, srcRecord: ActiveRecord) {
-        const records = await scene.io.database.query(scene, this.dstTable, { id: Reflect.get(srcRecord, `${this.propertyKey.toString()}Id`) });
+        const records = await scene.useDatabase().query(this.dstTable, { id: Reflect.get(srcRecord, `${this.propertyKey.toString()}Id`) });
         if (records.length !== 1) {
             throw new Error('belongsTo find multiple parent');
         }

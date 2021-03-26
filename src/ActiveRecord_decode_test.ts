@@ -5,11 +5,10 @@ import { toGet } from './toGet';
 import * as http from 'http';
 import fetch from 'node-fetch';
 import { toCreate } from './toCreate';
-import { HttpRpcClient, HttpRpcServer } from '@rotcare/io-http-rpc';
+import { HttpRpcServer } from '@rotcare/io-http-rpc';
 
 describe('ActiveRecord / decode', () => {
     let httpServer: http.Server;
-    let oldOutput: any;
     before(() => {
         (global as any).fetch = fetch;
     });
@@ -34,20 +33,17 @@ describe('ActiveRecord / decode', () => {
                 public readonly id: string;
                 public orderId: string;
             }
-            scene.io.serviceProtocol = new HttpRpcClient({
-                decode: ActiveRecord.decode,
-            });
             const rpcServer = new HttpRpcServer({
                 func: Order.getOrder,
             });
-            httpServer = http.createServer(rpcServer.handle.bind(rpcServer, scene.io)).listen(3000);
+            httpServer = http.createServer(rpcServer.handle.bind(rpcServer, scene.conf)).listen(3000);
 
             const order = await scene.create(Order, {});
             await scene.create(OrderItem, { orderId: order.id });
             await scene.create(OrderItem, { orderId: order.id });
 
             const loadedOrder = await scene.execute(undefined, async () => {
-                return await (scene.useServices('localhost') as any).getOrder(order.id);
+                return await (scene.useService('localhost') as any).getOrder(order.id);
             });
             strict.equal(loadedOrder.id, order.id);
             strict.notEqual(loadedOrder.items, undefined);

@@ -4,7 +4,7 @@ import { ActiveRecord } from './ActiveRecord';
 export function toGet<T>(table: Table<T>) {
     const f = async (scene: Scene, id?: any): Promise<T> => {
         const props = id ? { id } : {};
-        const records = await scene.io.database.query(scene, table, props);
+        const records = await scene.useDatabase().query(table, props);
         if (records.length === 0) {
             const msg = `${table.tableName} find 0 match of  ${JSON.stringify(props)}`;
             throw new Error(msg);
